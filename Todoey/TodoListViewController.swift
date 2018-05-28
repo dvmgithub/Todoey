@@ -10,7 +10,51 @@ import UIKit
 
 class TodoListViewController: UITableViewController {
 
-    var itemArray = ["Find Mike", "Buy Eggos", "Destroy Domogorgon"]
+//    var itemArray = ["Find Mike", "Buy Eggos", "Destroy Domogorgon","a","b","c","d","e","f","g","j","k","l","m","n","o","p","q"]
+    
+    var items:[CheckListItem]
+    
+    //inicializar la class
+    required init?(coder aDecoder: NSCoder) {
+        items = [CheckListItem]()
+        
+        let row0Item = CheckListItem()
+        row0Item.title = "Walk the dog"
+        row0Item.checked = true
+        items.append(row0Item)
+        
+        let row1Item = CheckListItem()
+        row1Item.title = "Brush my teeth"
+        row1Item.checked = false
+        items.append(row1Item)
+        
+        let row2Item = CheckListItem()
+        row2Item.title = "Learn IOS developper"
+        row2Item.checked = true
+        items.append(row2Item)
+        
+        let row3Item = CheckListItem()
+        row3Item.title = "Soccer practice"
+        row3Item.checked = false
+        items.append(row3Item)
+        
+        let row4Item = CheckListItem()
+        row4Item.title = "Eat ice cream"
+        row4Item.checked = false
+        items.append(row4Item)
+        
+        let row5Item = CheckListItem()
+        row5Item.title = "Read Ios app"
+        row5Item.checked = false
+        items.append(row5Item)
+        
+        let row6Item = CheckListItem()
+        row6Item.title = "Watch Game of Thrones"
+        row6Item.checked = false
+        items.append(row6Item)
+        
+        super.init(coder: aDecoder)
+    }
     
     //Variable para datos persistentes
     let defaults = UserDefaults.standard
@@ -18,8 +62,8 @@ class TodoListViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        if let items = defaults.array(forKey: "TodoListArray") as? [String] {
-          itemArray = items
+        if let itemDefault = defaults.array(forKey: "TodoListArray") as? [CheckListItem] {
+          items = itemDefault
         }
         
         // Uncomment the following line to preserve selection between presentations
@@ -43,14 +87,20 @@ class TodoListViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return itemArray.count
+        return items.count
     }
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-
-        cell.textLabel?.text = itemArray[indexPath.row]
+        
+        let item = items[indexPath.row]
+        
+        configureText(for: cell,with: item)
+        configureCheckmark(for: cell, with: item)
+        
+        //cell.textLabel?.text = itemArray[indexPath.row]
 
         return cell
     }
@@ -60,14 +110,14 @@ class TodoListViewController: UITableViewController {
     //TODO: Seleccionamos una cell:
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         if let cell = tableView.cellForRow(at: indexPath) {
-            let item = itemArray[indexPath.row]
-            if cell.accessoryType == .checkmark {
-                cell.accessoryType = .none
-            } else {
-                 cell.accessoryType = .checkmark
-            }
             
-            print("\(String(item)),\(String(describing: cell.textLabel?.text))")
+            let item = items[indexPath.row]
+            
+            item.toogleChecked()
+            
+            configureCheckmark(for: cell, with: item)
+            
+           // print("\(String(item)),\(String(describing: cell.textLabel?.text))")
             tableView.deselectRow(at: indexPath, animated: true)
         }
     }
@@ -128,11 +178,16 @@ class TodoListViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
             if textField.text != "" {
-            self.itemArray.append(textField.text!)
+                
+                let newItem = CheckListItem()
+                newItem.title = textField.text!
+                newItem.checked = false
+                self.items.append(newItem)
+                //self.itemArray.append(textField.text!)
             
-            self.defaults.set(self.itemArray, forKey: "TodoListArray")
+                self.defaults.set(self.items, forKey: "TodoListArray")
                   
-            self.tableView.reloadData()
+                self.tableView.reloadData()
             }
             
         }
@@ -147,4 +202,20 @@ class TodoListViewController: UITableViewController {
         present(alert,animated: true, completion: nil)
     }
     
+    func configureText(for cell: UITableViewCell, with item: CheckListItem){
+        cell.textLabel?.text = item.title
+    }
+    
+    func configureCheckmark(for cell: UITableViewCell, with item: CheckListItem){
+        
+        cell.accessoryType = item.checked ? .checkmark : .none
+        
+//        if item.checked{
+//            cell.accessoryType = .checkmark
+//            //label.text = "√"
+//        }else{
+//            cell.accessoryType = .none
+//            //label.text = ""
+//        }
+    }
 }
