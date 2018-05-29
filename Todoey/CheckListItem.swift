@@ -8,7 +8,7 @@
 
 import Foundation
 
-class CheckListItem{
+class CheckListItem: Codable  {
     var title: String = ""
     var checked: Bool = true
     

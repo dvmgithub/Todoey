@@ -14,6 +14,8 @@ class TodoListViewController: UITableViewController {
     
     var items:[CheckListItem]
     
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    
     //inicializar la class
     required init?(coder aDecoder: NSCoder) {
         items = [CheckListItem]()
@@ -56,15 +58,16 @@ class TodoListViewController: UITableViewController {
         super.init(coder: aDecoder)
     }
     
-    //Variable para datos persistentes
-    let defaults = UserDefaults.standard
+
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        if let itemDefault = defaults.array(forKey: "TodoListArray") as? [CheckListItem] {
-          items = itemDefault
-        }
+        
+        loadItems()
+        
+//        if let itemDefault = defaults.array(forKey: "TodoListArray") as? [CheckListItem] {
+//          items = itemDefault
+//        }
         
         // Uncomment the following line to preserve selection between presentations
         // self.clearsSelectionOnViewWillAppear = false
@@ -116,6 +119,7 @@ class TodoListViewController: UITableViewController {
             item.toogleChecked()
             
             configureCheckmark(for: cell, with: item)
+            saveItems()
             
            // print("\(String(item)),\(String(describing: cell.textLabel?.text))")
             tableView.deselectRow(at: indexPath, animated: true)
@@ -185,7 +189,8 @@ class TodoListViewController: UITableViewController {
                 self.items.append(newItem)
                 //self.itemArray.append(textField.text!)
             
-                self.defaults.set(self.items, forKey: "TodoListArray")
+                    self.saveItems()
+                
                   
                 self.tableView.reloadData()
             }
@@ -217,5 +222,25 @@ class TodoListViewController: UITableViewController {
 //            cell.accessoryType = .none
 //            //label.text = ""
 //        }
+    }
+    
+    func saveItems(){
+        let encoder = PropertyListEncoder()
+        do{
+            let data = try encoder.encode(items)
+            try data.write(to: dataFilePath!)
+        }catch {
+            print("Error enconding item \(error)")
+        }
+    }
+    func loadItems(){
+        if let data = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do{
+                items = try decoder.decode([CheckListItem].self, from: data)
+            }catch {
+                print("Error Denconding item \(error)")
+            }
+        }
     }
 }
