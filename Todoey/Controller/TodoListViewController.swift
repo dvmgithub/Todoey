@@ -7,63 +7,36 @@
 //
 
 import UIKit
+import CoreData
 
 class TodoListViewController: UITableViewController {
 
 //    var itemArray = ["Find Mike", "Buy Eggos", "Destroy Domogorgon","a","b","c","d","e","f","g","j","k","l","m","n","o","p","q"]
     
-    var items:[CheckListItem]
+    //var itemArray = [Item]()
+    
+    var category: Category! {
+        didSet{
+            refresh()
+        }
+    }
+    
+    var items = [Item]()
     
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
-    //inicializar la class
-    required init?(coder aDecoder: NSCoder) {
-        items = [CheckListItem]()
-        
-        let row0Item = CheckListItem()
-        row0Item.title = "Walk the dog"
-        row0Item.checked = true
-        items.append(row0Item)
-        
-        let row1Item = CheckListItem()
-        row1Item.title = "Brush my teeth"
-        row1Item.checked = false
-        items.append(row1Item)
-        
-        let row2Item = CheckListItem()
-        row2Item.title = "Learn IOS developper"
-        row2Item.checked = true
-        items.append(row2Item)
-        
-        let row3Item = CheckListItem()
-        row3Item.title = "Soccer practice"
-        row3Item.checked = false
-        items.append(row3Item)
-        
-        let row4Item = CheckListItem()
-        row4Item.title = "Eat ice cream"
-        row4Item.checked = false
-        items.append(row4Item)
-        
-        let row5Item = CheckListItem()
-        row5Item.title = "Read Ios app"
-        row5Item.checked = false
-        items.append(row5Item)
-        
-        let row6Item = CheckListItem()
-        row6Item.title = "Watch Game of Thrones"
-        row6Item.checked = false
-        items.append(row6Item)
-        
-        super.init(coder: aDecoder)
-    }
+    private var query = ""
     
-
+    private var appDelegate = UIApplication.shared.delegate as! AppDelegate
+    private let context  = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        loadItems()
+        
+        refresh()
+        
         
 //        if let itemDefault = defaults.array(forKey: "TodoListArray") as? [CheckListItem] {
 //          items = itemDefault
@@ -100,9 +73,12 @@ class TodoListViewController: UITableViewController {
         
         let item = items[indexPath.row]
         
-        configureText(for: cell,with: item)
-        configureCheckmark(for: cell, with: item)
+        cell.textLabel?.text = item.title
         
+        //configureText(for: cell,with: item)
+        //configureCheckmark(for: cell, with: item)
+        
+        cell.accessoryType = item.check ? .checkmark : .none
         //cell.textLabel?.text = itemArray[indexPath.row]
 
         return cell
@@ -116,9 +92,11 @@ class TodoListViewController: UITableViewController {
             
             let item = items[indexPath.row]
             
-            item.toogleChecked()
+           // itemtoogleChecked()
             
-            configureCheckmark(for: cell, with: item)
+            item.check = !item.check
+            cell.accessoryType = item.check ? .checkmark : .none
+            //configureCheckmark(for: cell, with: item)
             saveItems()
             
            // print("\(String(item)),\(String(describing: cell.textLabel?.text))")
@@ -181,17 +159,18 @@ class TodoListViewController: UITableViewController {
         let alert = UIAlertController(title: " Add New Todoey Item",message: "", preferredStyle: .alert)
         
         let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            
             if textField.text != "" {
                 
-                let newItem = CheckListItem()
+                let newItem = Item(context: self.context)
                 newItem.title = textField.text!
-                newItem.checked = false
-                self.items.append(newItem)
-                //self.itemArray.append(textField.text!)
-            
-                    self.saveItems()
+                newItem.check = false
+                newItem.parentCategory = self.category
                 
-                  
+                self.items.append(newItem)
+                
+                self.saveItems()
+
                 self.tableView.reloadData()
             }
             
@@ -207,40 +186,97 @@ class TodoListViewController: UITableViewController {
         present(alert,animated: true, completion: nil)
     }
     
-    func configureText(for cell: UITableViewCell, with item: CheckListItem){
-        cell.textLabel?.text = item.title
-    }
+//    func configureText(for cell: UITableViewCell, with item: ){
+//        cell.textLabel?.text = item.title
+//    }
     
-    func configureCheckmark(for cell: UITableViewCell, with item: CheckListItem){
-        
-        cell.accessoryType = item.checked ? .checkmark : .none
-        
-//        if item.checked{
-//            cell.accessoryType = .checkmark
-//            //label.text = "√"
-//        }else{
-//            cell.accessoryType = .none
-//            //label.text = ""
-//        }
-    }
+//    func configureCheckmark(for cell: UITableViewCell, with item: Item){
+//
+//        cell.accessoryType = item.check ? .checkmark : .none
+//
+////        if item.checked{
+////            cell.accessoryType = .checkmark
+////            //label.text = "√"
+////        }else{
+////            cell.accessoryType = .none
+////            //label.text = ""
+////        }
+//    }
     
     func saveItems(){
-        let encoder = PropertyListEncoder()
+
         do{
-            let data = try encoder.encode(items)
-            try data.write(to: dataFilePath!)
+            try context.save()
         }catch {
             print("Error enconding item \(error)")
         }
     }
-    func loadItems(){
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do{
-                items = try decoder.decode([CheckListItem].self, from: data)
-            }catch {
-                print("Error Denconding item \(error)")
-            }
+//    func loadItems(){
+//        let request: NSFetchRequest<Item> = Item.fetchRequest()
+//        //let request = Item.fetchRequest() as NSFetchRequest>Item>
+//
+//        do {
+//            items =  try context.fetch(request)
+//        }catch let error as NSError {
+//            print("Could not fetch. \(error), \(error.userInfo)")
+//        }
+//    }
+    
+    func refresh() {
+        let request = Item.fetchRequest() as NSFetchRequest<Item>
+        
+        if !query.isEmpty {
+            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@ AND parentCategory = %@ ", query, category)
+        }else {
+            request.predicate = NSPredicate(format: "parentCategory = %@", category)
+        }
+        
+        //Otra opcion para anexar predicados
+//        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", category.name)
+//        let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate,predicate])
+//        request.predicate = compoundPredicate
+        
+        let sort = NSSortDescriptor(key: #keyPath(Item.title),ascending:true, selector: #selector(NSString.caseInsensitiveCompare(_:)))
+        request.sortDescriptors = [sort]
+        
+        do{
+            items =  try context.fetch(request)
+        }catch let error as NSError {
+            print("Could not fetch. \(error), \(error.userInfo)")
         }
     }
+    
+}
+
+// Search Bar Delegate
+extension TodoListViewController:UISearchBarDelegate {
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        guard let txt = searchBar.text else {
+            return
+        }
+        query = txt
+        refresh()
+        searchBar.resignFirstResponder()
+        //searchBar.setShowsCancelButton(true, animated: true)
+        tableView.reloadData()
+    }
+    
+//    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+//        query = ""
+//        searchBar.text = nil
+//        searchBar.setShowsCancelButton(false, animated: true)
+//        searchBar.resignFirstResponder()
+//        tableView.reloadData()
+//    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            query = ""
+            searchBar.resignFirstResponder()
+            refresh()
+            tableView.reloadData()
+        }
+    }
+    
 }
