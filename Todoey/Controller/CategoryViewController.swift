@@ -7,14 +7,16 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
 
-    private var appDelegate = UIApplication.shared.delegate as! AppDelegate
-    private let context  = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     private var categoryArray:[Category] = [Category]()
+    
+    let realm = try! Realm()
+    var categories: Results<Category>?
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,16 +33,20 @@ class CategoryViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete implementation, return the number of rows
-        return categoryArray.count
+        return categories?.count ?? 1
+        //print("Numero de registro categorias \(categories?.count ?? 0)")
     }
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
 
-        let category = categoryArray[indexPath.row]
-        
-        cell.textLabel?.text = category.name
+//        let category = categoryArray[indexPath.row]
+//        cell.textLabel?.text = category.name
+        // En el caso categorias es nill mostramos la siguiente cadena
+        let nombre = categories?[indexPath.row].name ?? "No Categories Add"
+        print(nombre)
+        cell.textLabel?.text = nombre
         
         return cell
     }
@@ -48,9 +54,11 @@ class CategoryViewController: UITableViewController {
     // MARK: - TableView Delegate Methods
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
-        performSegue(withIdentifier: "goToItems", sender: self)
-        
+        if categories != nil {
+            performSegue(withIdentifier: "goToItems", sender: self)
+        }else{
+            print("no hay categorias para add tareas")
+        }
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -58,7 +66,8 @@ class CategoryViewController: UITableViewController {
             let tlv = segue.destination as! TodoListViewController
             
             if let indexPath = tableView.indexPathForSelectedRow {
-                tlv.category = categoryArray[indexPath.row]
+                //tlv.category = categoryArray[indexPath.row]
+                tlv.category = categories?[indexPath.row]
             }
         }
         
@@ -100,26 +109,23 @@ class CategoryViewController: UITableViewController {
     */
 
 
-    
-    
     @IBAction func addCategoryBarButtonPressed(_ sender: UIBarButtonItem) {
             
         var textField = UITextField()
         
-        let alert = UIAlertController(title: " Add New Todoey Category",message: "", preferredStyle: .alert)
+        let alert = UIAlertController(title: "Add New Todoey Category",message: "", preferredStyle: .alert)
         
         let action = UIAlertAction(title: "Add Category", style: .default) { (action) in
             
             if textField.text != "" {
                 
-                let newCategory = Category(context: self.context)
+                let newCategory = Category()
                 newCategory.name = textField.text!
                 
-                self.categoryArray.append(newCategory)
+                //self.categoryArray.append(newCategory)
                 
-                self.appDelegate.saveContext()
+                self.saveCategory(category: newCategory)
                 
-                self.tableView.reloadData()
             }
             
         }
@@ -135,21 +141,36 @@ class CategoryViewController: UITableViewController {
         
     }
     
+    func saveCategory(category: Category) {
+        do{
+            try! realm.write {
+                realm.add(category)
+            }
+        }catch let error as NSError {
+            print("Could not save Category. \(error), \(error.userInfo)")
+        }
+        self.tableView.reloadData()
+    }
     
     func refresh() {
-        let request = Category.fetchRequest() as NSFetchRequest<Category>
         
-//        if !query.isEmpty {
-//            request.predicate = NSPredicate(format: "name CONTAINS[cd] %@", query)
+       categories = realm.objects(Category.self)
+       
+       tableView.reloadData()
+        
+//        let request = Category.fetchRequest() as NSFetchRequest<Category>
+//
+////        if !query.isEmpty {
+////            request.predicate = NSPredicate(format: "name CONTAINS[cd] %@", query)
+////        }
+//
+//        let sort = NSSortDescriptor(key: #keyPath(Category.name),ascending:true, selector: #selector(NSString.caseInsensitiveCompare(_:)))
+//        request.sortDescriptors = [sort]
+//
+//        do{
+//            categoryArray =  try context.fetch(request)
+//        }catch let error as NSError {
+//            print("Could not fetch. \(error), \(error.userInfo)")
 //        }
-        
-        let sort = NSSortDescriptor(key: #keyPath(Category.name),ascending:true, selector: #selector(NSString.caseInsensitiveCompare(_:)))
-        request.sortDescriptors = [sort]
-        
-        do{
-            categoryArray =  try context.fetch(request)
-        }catch let error as NSError {
-            print("Could not fetch. \(error), \(error.userInfo)")
-        }
     }
 }
