@@ -8,8 +8,9 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
 
     
     private var categoryArray:[Category] = [Category]()
@@ -20,8 +21,10 @@ class CategoryViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         refresh()
+        
+        tableView.separatorStyle = .none
     }
 
     override func didReceiveMemoryWarning() {
@@ -32,21 +35,36 @@ class CategoryViewController: UITableViewController {
     // MARK: - Table view data source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
         return categories?.count ?? 1
-        //print("Numero de registro categorias \(categories?.count ?? 0)")
     }
 
-    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
+        
+        let cell =  super.tableView(tableView, cellForRowAt: indexPath)
 
-//        let category = categoryArray[indexPath.row]
-//        cell.textLabel?.text = category.name
-        // En el caso categorias es nill mostramos la siguiente cadena
-        let nombre = categories?[indexPath.row].name ?? "No Categories Add"
-        print(nombre)
-        cell.textLabel?.text = nombre
+        if let categorySel = categories?[indexPath.row] {
+            // Si categorias es nil mostramos la siguiente cadena
+            cell.textLabel?.text =  categorySel.name ?? "No Categories Add"
+
+            let colorCell = categorySel.colorCategory ?? UIColor.randomFlat.hexValue()
+            
+            if  categorySel.colorCategory == nil {
+                categories?[indexPath.row].colorCategory = colorCell
+            }else {
+                guard let categoryColour = UIColor(hexString: colorCell) else {fatalError()}
+                cell.backgroundColor = categoryColour
+                cell.textLabel?.textColor = ContrastColorOf(categoryColour, returnFlat: true)
+            }
+            
+            
+        }
+//        if let colorCell = categories?[indexPath.row].colorCategory {
+//            cell.backgroundColor = UIColor(hexString:  colorCell)
+//        } else {
+//            categories?[indexPath.row].colorCategory = UIColor.randomFlat.hexValue()
+//            cell.backgroundColor = UIColor(hexString: categories?[indexPath.row].colorCategory)
+//
+//        }
         
         return cell
     }
@@ -62,51 +80,18 @@ class CategoryViewController: UITableViewController {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
         if segue.identifier == "goToItems" {
+            print("color Original: \(navigationController?.navigationBar.barTintColor?.hexValue())")
             let tlv = segue.destination as! TodoListViewController
+            tlv.colourBarOriginal = (navigationController?.navigationBar.barTintColor?.hexValue())!
             
             if let indexPath = tableView.indexPathForSelectedRow {
                 //tlv.category = categoryArray[indexPath.row]
                 tlv.category = categories?[indexPath.row]
             }
         }
-        
     }
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
-    }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
 
 
     @IBAction func addCategoryBarButtonPressed(_ sender: UIBarButtonItem) {
@@ -121,6 +106,7 @@ class CategoryViewController: UITableViewController {
                 
                 let newCategory = Category()
                 newCategory.name = textField.text!
+                newCategory.colorCategory = UIColor.randomFlat.hexValue()
                 
                 //self.categoryArray.append(newCategory)
                 
@@ -140,6 +126,22 @@ class CategoryViewController: UITableViewController {
         present(alert,animated: true, completion: nil)
         
     }
+    
+    //MARK: - Delete Data From Swipe
+    
+    override func updateModel(at indexPath: IndexPath) {
+        if let categoryForDeletion = categories?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(categoryForDeletion)
+                }
+            }catch {
+                print("Error deleting Category, \(error)")
+            }
+        }
+    }
+    
+    //MARK: - Data Manipulation Methods
     
     func saveCategory(category: Category) {
         do{
@@ -174,3 +176,4 @@ class CategoryViewController: UITableViewController {
 //        }
     }
 }
+

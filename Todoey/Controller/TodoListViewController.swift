@@ -8,76 +8,101 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController {
-
-//    var itemArray = ["Find Mike", "Buy Eggos", "Destroy Domogorgon","a","b","c","d","e","f","g","j","k","l","m","n","o","p","q"]
-    
-    //var itemArray = [Item]()
-    
+class TodoListViewController: SwipeTableViewController {
 
     let realm = try! Realm()
     
-    
     var category: Category! {
         didSet{
-            // refresh()
             refreshRealm()
         }
     }
     
+    var colourBarOriginal: String = ""
     
-    var itemArray = [Item]()
-    var todoItems: Results<Item>?
+    private var itemArray = [Item]()
+    private var todoItems: Results<Item>?
     
     private var query = ""
     
+    
+    @IBOutlet weak var searchBar: UISearchBar!
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        
-        refreshRealm()
-        
-//        if let itemDefault = defaults.array(forKey: "TodoListArray") as? [CheckListItem] {
-//          items = itemDefault
-//        }
-        
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
 
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem
+        tableView.separatorStyle = .none
+
     }
-
+    
+    override func viewWillAppear(_ animated: Bool) {
+       
+        // Poner el mismo color que el de la categoria seleccionada
+        
+        title = category.name
+        
+        guard let colourHex = category.colorCategory else { fatalError() }
+        
+        updateNavBar(withHexCode: colourHex)
+        
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        print("color lista: \(colourBarOriginal) y #2D7EC1")
+        updateNavBar(withHexCode: colourBarOriginal)
+    }
+    
+    func updateNavBar(withHexCode colourHexCode: String){
+        guard let navBar = navigationController?.navigationBar else {fatalError("Navigation controller no exist.")}
+        
+        guard let navBarColour = UIColor(hexString: colourHexCode) else { fatalError()}
+        
+        navBar.barTintColor = navBarColour
+        
+        navBar.tintColor = ContrastColorOf(navBarColour, returnFlat: true)
+        
+        navBar.titleTextAttributes = [NSAttributedStringKey.foregroundColor: ContrastColorOf(navBarColour, returnFlat: true)]
+        
+        searchBar.barTintColor = navBarColour
+    }
+    
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
 
     // MARK: - Table view data source
 
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
         return todoItems?.count ?? 1
     }
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
             cell.accessoryType = item.check ? .checkmark : .none
+            
+            let pct = CGFloat(indexPath.row) / CGFloat(todoItems!.count)
+            if let colour  = UIColor(hexString: category.colorCategory!)?.darken(byPercentage: pct) {
+                cell.backgroundColor = colour
+                cell.textLabel?.textColor = ContrastColorOf(colour, returnFlat: true)
+            }
+            
         }else {
             cell.textLabel?.text = "No items for Category"
         }
         
         //configureText(for: cell,with: item)
         //configureCheckmark(for: cell, with: item)
-        
-        //cell.accessoryType = item.check ? .checkmark : .none
+
         //cell.textLabel?.text = itemArray[indexPath.row]
 
         return cell
@@ -105,52 +130,6 @@ class TodoListViewController: UITableViewController {
         }
     }
     
-    
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
-    }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
-    
     // MARK: - Add New Items
     
     @IBAction func addItem(_ sender: Any) {
@@ -163,7 +142,7 @@ class TodoListViewController: UITableViewController {
             
             if textField.text != "" {
                 do{
-                try self.realm.write {
+                    try self.realm.write {
                     let newItem = Item()
                     newItem.title = textField.text!
                     newItem.check = false
@@ -174,8 +153,7 @@ class TodoListViewController: UITableViewController {
                 }catch {
                     print("error saving new items")
                 }
-
-                
+                self.tableView.reloadData()
                // self.saveItems(item: newItem)
 
             }
@@ -192,22 +170,21 @@ class TodoListViewController: UITableViewController {
         present(alert,animated: true, completion: nil)
     }
     
-//    func configureText(for cell: UITableViewCell, with item: ){
-//        cell.textLabel?.text = item.title
-//    }
     
-//    func configureCheckmark(for cell: UITableViewCell, with item: Item){
-//
-//        cell.accessoryType = item.check ? .checkmark : .none
-//
-////        if item.checked{
-////            cell.accessoryType = .checkmark
-////            //label.text = "√"
-////        }else{
-////            cell.accessoryType = .none
-////            //label.text = ""
-////        }
-//    }
+    override func updateModel(at indexPath: IndexPath) {
+        if let itemForDeleting = todoItems?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(itemForDeleting)
+                }
+            }catch {
+                print("Error deleting Item, \(error)")
+            }
+        }
+    }
+    
+    
+    //MARK: Data Methods
     
     func saveItems(item: Item) {
         do{
@@ -267,7 +244,23 @@ class TodoListViewController: UITableViewController {
 //            print("Could not fetch. \(error), \(error.userInfo)")
 //        }
 //    }
+    //    func configureText(for cell: UITableViewCell, with item: ){
+    //        cell.textLabel?.text = item.title
+    //    }
     
+    //    func configureCheckmark(for cell: UITableViewCell, with item: Item){
+    //
+    //        cell.accessoryType = item.check ? .checkmark : .none
+    //
+    ////        if item.checked{
+    ////            cell.accessoryType = .checkmark
+    ////            //label.text = "√"
+    ////        }else{
+    ////            cell.accessoryType = .none
+    ////            //label.text = ""
+    ////        }
+    //    }
+
 }
 
 // Search Bar Delegate
@@ -282,7 +275,7 @@ extension TodoListViewController:UISearchBarDelegate {
         tableView.reloadData()
         
 //        query = txt
-//        refreshRealm()
+//        refresh()
 //        searchBar.resignFirstResponder()
 //        //searchBar.setShowsCancelButton(true, animated: true)
 //        tableView.reloadData()
@@ -310,5 +303,7 @@ extension TodoListViewController:UISearchBarDelegate {
 //            tableView.reloadData()
         }
     }
+    
+    
     
 }
